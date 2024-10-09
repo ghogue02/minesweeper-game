@@ -5,9 +5,65 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Minesweeper</title>
     <style>
-        /* ... (previous styles remain the same) ... */
-        #leaderboard {
-            margin-top: 20px;
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            background-color: #fff;
+            border: 2px solid #333;
+            padding: 20px;
+            border-radius: 5px;
+        }
+        #game {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(10, 30px);
+            gap: 1px;
+            margin-bottom: 10px;
+        }
+        .cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid #999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            cursor: pointer;
+            background-color: #ddd;
+        }
+        .revealed {
+            background-color: #fff;
+        }
+        .mine {
+            background-color: #f00;
+        }
+        #rules, #leaderboard {
+            max-width: 300px;
+        }
+        .score-info {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        #name-input {
+            margin-bottom: 10px;
+        }
+        #continue-game {
+            display: none;
+            margin-top: 10px;
         }
         #leaderboard table {
             width: 100%;
@@ -26,27 +82,169 @@
 <body>
     <div class="container">
         <div id="game">
-            <!-- ... (previous game elements remain the same) ... -->
-            <div id="leaderboard">
-                <h2>Leaderboard</h2>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Name</th>
-                            <th>Score</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leaderboard-body"></tbody>
-                </table>
+            <div id="name-input">
+                <label for="player-name">Your Name: </label>
+                <input type="text" id="player-name" maxlength="3" placeholder="AAA">
             </div>
+            <div class="score-info">Score: <span id="score">0</span></div>
+            <div class="score-info">Max Score: <span id="max-score">0</span></div>
+            <div class="score-info">Cells Left: <span id="cells-left">0</span></div>
+            <div class="score-info">Bombs Left: <span id="bombs-left">0</span></div>
+            <div id="board"></div>
+            <button onclick="initGame()">New Game</button>
+            <button id="continue-game" onclick="continueGame()">Continue Playing</button>
         </div>
         <div id="rules">
-            <!-- ... (rules remain the same) ... -->
+            <h2>Minesweeper Rules</h2>
+            <ol>
+                <li>The board is divided into cells, with mines randomly distributed.</li>
+                <li>To win, open all the cells without mines.</li>
+                <li>The number on a cell shows the number of mines adjacent to it.</li>
+                <li>Using this information, determine which cells are safe to open.</li>
+                <li>Clicking on a mine ends the game.</li>
+            </ol>
+            <h3>Scoring</h3>
+            <p>You earn 10 points for each revealed cell. Try to get the highest score!</p>
+            <p>If you clear all safe cells, you can continue to a new board to increase your score.</p>
+        </div>
+        <div id="leaderboard">
+            <h2>Leaderboard</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Name</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body"></tbody>
+            </table>
         </div>
     </div>
     <script>
-        // ... (previous game logic remains the same) ...
+        const BOARD_SIZE = 10;
+        const NUM_MINES = 10;
+        let board = [];
+        let gameOver = false;
+        let score = 0;
+        let maxScore = 0;
+        let cellsLeft = 0;
+        let bombsLeft = 0;
+
+        function initGame() {
+            board = [];
+            gameOver = false;
+            score = 0;
+            cellsLeft = BOARD_SIZE * BOARD_SIZE - NUM_MINES;
+            bombsLeft = NUM_MINES;
+            updateScore();
+            updateMaxScore();
+            updateCellsLeft();
+            updateBombsLeft();
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                board[i] = [];
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    board[i][j] = {
+                        isMine: false,
+                        revealed: false,
+                        neighborMines: 0
+                    };
+                }
+            }
+            placeMines();
+            calculateNeighborMines();
+            renderBoard();
+            document.getElementById('continue-game').style.display = 'none';
+        }
+
+        function placeMines() {
+            let minesPlaced = 0;
+            while (minesPlaced < NUM_MINES) {
+                const row = Math.floor(Math.random() * BOARD_SIZE);
+                const col = Math.floor(Math.random() * BOARD_SIZE);
+                if (!board[row][col].isMine) {
+                    board[row][col].isMine = true;
+                    minesPlaced++;
+                }
+            }
+        }
+
+        function calculateNeighborMines() {
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    if (!board[i][j].isMine) {
+                        board[i][j].neighborMines = countNeighborMines(i, j);
+                    }
+                }
+            }
+        }
+
+        function countNeighborMines(row, col) {
+            let count = 0;
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    const newRow = row + i;
+                    const newCol = col + j;
+                    if (newRow >= 0 && newRow < BOARD_SIZE && newCol >= 0 && newCol < BOARD_SIZE) {
+                        if (board[newRow][newCol].isMine) {
+                            count++;
+                        }
+                    }
+                }
+            }
+            return count;
+        }
+
+        function renderBoard() {
+            const boardElement = document.getElementById('board');
+            boardElement.innerHTML = '';
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                for (let j = 0; j < BOARD_SIZE; j++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    cell.addEventListener('click', handleCellClick);
+                    boardElement.appendChild(cell);
+                }
+            }
+            updateBoard();
+        }
+
+        function handleCellClick(event) {
+            if (gameOver) return;
+            const row = parseInt(event.target.dataset.row);
+            const col = parseInt(event.target.dataset.col);
+            revealCell(row, col);
+            updateBoard();
+            checkGameStatus();
+        }
+
+        function revealCell(row, col) {
+            if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE || board[row][col].revealed) {
+                return;
+            }
+            board[row][col].revealed = true;
+            if (!board[row][col].isMine) {
+                score += 10;
+                cellsLeft--;
+                updateScore();
+                updateCellsLeft();
+            }
+            if (board[row][col].isMine) {
+                gameOver = true;
+                alert('Game Over! You hit a mine. Your final score: ' + score);
+                submitScore();
+                return;
+            }
+            if (board[row][col].neighborMines === 0) {
+                for (let i = -1; i <= 1; i++) {
+                    for (let j = -1; j <= 1; j++) {
+                        revealCell(row + i, col + j);
+                    }
+                }
+            }
+        }
 
         function checkGameStatus() {
             if (cellsLeft === 0) {
@@ -61,9 +259,49 @@
             }
         }
 
+        function continueGame() {
+            initGame();
+        }
+
+        function updateBoard() {
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((cell) => {
+                const row = parseInt(cell.dataset.row);
+                const col = parseInt(cell.dataset.col);
+                if (board[row][col].revealed) {
+                    cell.classList.add('revealed');
+                    if (board[row][col].isMine) {
+                        cell.classList.add('mine');
+                        cell.textContent = '💣';
+                    } else if (board[row][col].neighborMines > 0) {
+                        cell.textContent = board[row][col].neighborMines;
+                    }
+                } else {
+                    cell.classList.remove('revealed', 'mine');
+                    cell.textContent = '';
+                }
+            });
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+        }
+
+        function updateMaxScore() {
+            document.getElementById('max-score').textContent = maxScore;
+        }
+
+        function updateCellsLeft() {
+            document.getElementById('cells-left').textContent = cellsLeft;
+        }
+
+        function updateBombsLeft() {
+            document.getElementById('bombs-left').textContent = bombsLeft;
+        }
+
         function submitScore() {
             const name = document.getElementById('player-name').value || 'AAA';
-            fetch('https://murmuring-stream-81683-d535e3cf18cd.herokuapp.com/', {
+            fetch('https://murmuring-stream-81683-d535e3cf18cd.herokuapp.com/api/score', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -79,7 +317,7 @@
         }
 
         function fetchLeaderboard() {
-            fetch('https://murmuring-stream-81683-d535e3cf18cd.herokuapp.com/')
+            fetch('https://murmuring-stream-81683-d535e3cf18cd.herokuapp.com/api/leaderboard')
             .then(response => response.json())
             .then(data => {
                 const leaderboardBody = document.getElementById('leaderboard-body');
