@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minesweeper</title>
+    <style>
+        /* ... (previous styles remain the same) ... */
+        #leaderboard {
+            margin-top: 20px;
+        }
+        #leaderboard table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        #leaderboard th, #leaderboard td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        #leaderboard th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="game">
+            <!-- ... (previous game elements remain the same) ... -->
+            <div id="leaderboard">
+                <h2>Leaderboard</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Name</th>
+                            <th>Score</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-body"></tbody>
+                </table>
+            </div>
+        </div>
+        <div id="rules">
+            <!-- ... (rules remain the same) ... -->
+        </div>
+    </div>
+    <script>
+        // ... (previous game logic remains the same) ...
+
+        function checkGameStatus() {
+            if (cellsLeft === 0) {
+                gameOver = true;
+                if (score > maxScore) {
+                    maxScore = score;
+                    updateMaxScore();
+                }
+                alert('Congratulations! You cleared the board! Your current score: ' + score);
+                document.getElementById('continue-game').style.display = 'block';
+                submitScore();
+            }
+        }
+
+        function submitScore() {
+            const name = document.getElementById('player-name').value || 'AAA';
+            fetch('http://localhost:3000/api/score', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ name, score }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Score submitted successfully');
+                fetchLeaderboard();
+            })
+            .catch(error => console.error('Error submitting score:', error));
+        }
+
+        function fetchLeaderboard() {
+            fetch('http://localhost:3000/api/leaderboard')
+            .then(response => response.json())
+            .then(data => {
+                const leaderboardBody = document.getElementById('leaderboard-body');
+                leaderboardBody.innerHTML = '';
+                data.forEach((entry, index) => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${entry.name}</td>
+                        <td>${entry.score}</td>
+                    `;
+                    leaderboardBody.appendChild(row);
+                });
+            })
+            .catch(error => console.error('Error fetching leaderboard:', error));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initGame();
+            fetchLeaderboard();
+        });
+    </script>
+</body>
+</html>
